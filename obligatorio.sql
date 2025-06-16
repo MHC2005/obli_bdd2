@@ -1,149 +1,134 @@
+
 CREATE TABLE Persona (
-    CI VARCHAR(20) PRIMARY KEY,
-    NombreCompleto VARCHAR(100),
+    CI INT PRIMARY KEY,
+    Nombre_Completo VARCHAR(100),
     Numero VARCHAR(20),
     Serie VARCHAR(20)
 );
--- Tabla Elección
-CREATE TABLE Eleccion (
-    IDEleccion SERIAL PRIMARY KEY,
-    Fecha DATE,
-    Tipo VARCHAR(50)
+
+CREATE TABLE Ciudadano (
+    CI INT PRIMARY KEY,
+    Fecha_Nacimiento DATE,
+    ID_Circuito INT,
+    FOREIGN KEY (CI) REFERENCES Persona(CI),
+    FOREIGN KEY (ID_Circuito) REFERENCES Circuito(ID_Circuito)
 );
 
--- Tabla Establecimiento
+CREATE TABLE Miembro_Mesa (
+    CI INT PRIMARY KEY,
+    Organismo_Estado VARCHAR(100),
+    FOREIGN KEY (CI) REFERENCES Persona(CI)
+);
+
 CREATE TABLE Establecimiento (
-    IDEstablecimiento SERIAL PRIMARY KEY,
+    ID_Establecimiento INT PRIMARY KEY,
     Tipo VARCHAR(50),
     Zona VARCHAR(50),
     Departamento VARCHAR(50),
     Nombre VARCHAR(100),
-    Direccion VARCHAR(150)
+    Direccion VARCHAR(100)
 );
 
--- Tabla Circuito
-CREATE TABLE Circuito (
-    IDCircuito SERIAL PRIMARY KEY,
-    Barrio VARCHAR(100),
-    Accesible BOOLEAN,
-    Localidad VARCHAR(100),
-    Departamento VARCHAR(100),
-    IDEstablecimiento INT,
-    FOREIGN KEY (IDEstablecimiento) REFERENCES Establecimiento(IDEstablecimiento)
-);
-
--- Tabla Ciudadano
-CREATE TABLE Ciudadano (
-    CI VARCHAR(20) PRIMARY KEY,
-    FechaNacimiento DATE,
-    IDCircuito INT,
+CREATE TABLE Agente_Policial (
+    CI INT PRIMARY KEY,
+    Comisaria VARCHAR(50),
+    ID_Establecimiento INT,
     FOREIGN KEY (CI) REFERENCES Persona(CI),
-    FOREIGN KEY (IDCircuito) REFERENCES Circuito(IDCircuito)
+    FOREIGN KEY (ID_Establecimiento) REFERENCES Establecimiento(ID_Establecimiento)
 );
 
--- Tabla MiembroMesa
-CREATE TABLE MiembroMesa (
-    CI VARCHAR(20) PRIMARY KEY,
-    OrganismoEstado VARCHAR(100),
+CREATE TABLE Eleccion (
+    ID_Eleccion INT PRIMARY KEY,
+    Fecha DATE,
+    Tipo VARCHAR(50)
+);
+
+CREATE TABLE Candidato (
+    CI INT PRIMARY KEY,
+    Cargo_Postulado VARCHAR(50),
     FOREIGN KEY (CI) REFERENCES Persona(CI)
 );
 
--- Tabla AgentePolicial
-CREATE TABLE AgentePolicial (
-    CI VARCHAR(20) PRIMARY KEY,
-    Comisaria VARCHAR(100),
-    IDEstablecimiento INT,
-    FOREIGN KEY (CI) REFERENCES Persona(CI),
-    FOREIGN KEY (IDEstablecimiento) REFERENCES Establecimiento(IDEstablecimiento)
-);
-
--- Tabla PartidoPolitico
-CREATE TABLE PartidoPolitico (
-    IDPartidoPolitico SERIAL PRIMARY KEY,
-    Nombre VARCHAR(100),
-    DireccionSede VARCHAR(150),
-    Presidente VARCHAR(100),
-    Vicepresidente VARCHAR(100)
-);
-
--- Tabla Candidato
-CREATE TABLE Candidato (
-    CI VARCHAR(20),
-    IDEleccion INT,
-    Lista VARCHAR(50),
-    IDPartidoPolitico INT,
-    CargoPostulado VARCHAR(100),
-    PRIMARY KEY (CI, IDEleccion),
-    FOREIGN KEY (CI) REFERENCES Persona(CI),
-    FOREIGN KEY (IDEleccion) REFERENCES Eleccion(IDEleccion),
-    FOREIGN KEY (IDPartidoPolitico) REFERENCES PartidoPolitico(IDPartidoPolitico)
-);
-
--- Tabla Presentan
 CREATE TABLE Presentan (
-    CI VARCHAR(20),
-    IDEleccion INT,
-    PRIMARY KEY (CI, IDEleccion),
-    FOREIGN KEY (CI) REFERENCES Persona(CI),
-    FOREIGN KEY (IDEleccion) REFERENCES Eleccion(IDEleccion)
+    CI INT,
+    ID_Eleccion INT,
+    PRIMARY KEY (CI, ID_Eleccion),
+    FOREIGN KEY (CI) REFERENCES Candidato(CI),
+    FOREIGN KEY (ID_Eleccion) REFERENCES Eleccion(ID_Eleccion)
 );
 
--- Tabla Papeleta
 CREATE TABLE Papeleta (
-    IDPapeleta SERIAL PRIMARY KEY,
+    ID_Papeleta INT PRIMARY KEY,
     Tipo VARCHAR(50),
-    ListaAsociada VARCHAR(50),
-    Color VARCHAR(50)
+    Color VARCHAR(50),
+    ID_Eleccion INT,
+    FOREIGN KEY (ID_Eleccion) REFERENCES Eleccion(ID_Eleccion)
 );
 
--- Tabla Voto
 CREATE TABLE Voto (
-    IDVoto SERIAL PRIMARY KEY,
-    FechaHoraEmision TIMESTAMP,
+    ID_Voto INT PRIMARY KEY,
+    Fecha_Hora_Emision TIMESTAMP,
     Observado BOOLEAN,
     Estado VARCHAR(50),
-    IDEleccion INT,
-    IDCircuito INT,
-    FOREIGN KEY (IDEleccion) REFERENCES Eleccion(IDEleccion),
-    FOREIGN KEY (IDCircuito) REFERENCES Circuito(IDCircuito)
+    ID_Eleccion INT,
+    ID_Circuito INT,
+    Numero_Lista INT,
+    FOREIGN KEY (ID_Eleccion) REFERENCES Eleccion(ID_Eleccion),
+    FOREIGN KEY (ID_Circuito) REFERENCES Circuito(ID_Circuito),
+    FOREIGN KEY (Numero_Lista) REFERENCES Lista(Numero_Lista)
 );
 
--- Tabla VotoPapeleta
-CREATE TABLE VotoPapeleta (
-    IDPapeleta INT,
-    IDVoto INT,
-    PRIMARY KEY (IDPapeleta, IDVoto),
-    FOREIGN KEY (IDPapeleta) REFERENCES Papeleta(IDPapeleta),
-    FOREIGN KEY (IDVoto) REFERENCES Voto(IDVoto)
+CREATE TABLE Voto_Papeleta (
+    ID_Papeleta INT,
+    ID_Voto INT,
+    PRIMARY KEY (ID_Papeleta, ID_Voto),
+    FOREIGN KEY (ID_Papeleta) REFERENCES Papeleta(ID_Papeleta),
+    FOREIGN KEY (ID_Voto) REFERENCES Voto(ID_Voto)
 );
 
--- Tabla Integra
+CREATE TABLE Partido_Politico (
+    ID_Partido_Politico INT PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Direccion_Sede VARCHAR(100),
+    CI_Presidente INT,
+    CI_Vicepresidente INT,
+    FOREIGN KEY (CI_Presidente) REFERENCES Persona(CI),
+    FOREIGN KEY (CI_Vicepresidente) REFERENCES Persona(CI)
+);
+
+CREATE TABLE Circuito (
+    ID_Circuito INT PRIMARY KEY,
+    Barrio VARCHAR(50),
+    Accesible BOOLEAN,
+    Localidad VARCHAR(50),
+    Departamento VARCHAR(50),
+    ID_Establecimiento INT,
+    FOREIGN KEY (ID_Establecimiento) REFERENCES Establecimiento(ID_Establecimiento)
+);
+
 CREATE TABLE Integra (
-    CI VARCHAR(20),
-    IDCircuito INT,
+    CI INT,
+    ID_Circuito INT,
     Cargo VARCHAR(50),
-    PRIMARY KEY (CI, IDCircuito),
-    FOREIGN KEY (CI) REFERENCES Persona(CI),
-    FOREIGN KEY (IDCircuito) REFERENCES Circuito(IDCircuito)
+    PRIMARY KEY (CI, ID_Circuito),
+    FOREIGN KEY (CI) REFERENCES Miembro_Mesa(CI),
+    FOREIGN KEY (ID_Circuito) REFERENCES Circuito(ID_Circuito)
 );
 
--- Tabla Lista
 CREATE TABLE Lista (
-    NumeroLista VARCHAR(50) PRIMARY KEY,
-    Organo VARCHAR(50),
-    CandidatoApoyado VARCHAR(100),
-    Departamento VARCHAR(100),
-    IDPartidoPolitico INT,
-    CI VARCHAR(20),
-    FOREIGN KEY (IDPartidoPolitico) REFERENCES PartidoPolitico(IDPartidoPolitico),
-    FOREIGN KEY (CI) REFERENCES Persona(CI)
+    Numero_Lista INT PRIMARY KEY,
+    Organ VARCHAR(50),
+    Departamento VARCHAR(50),
+    ID_Partido_Politico INT,
+    CI INT,
+    FOREIGN KEY (ID_Partido_Politico) REFERENCES Partido_Politico(ID_Partido_Politico),
+    FOREIGN KEY (CI) REFERENCES Candidato(CI)
 );
 
--- Tabla Contiene
 CREATE TABLE Contiene (
-    CI VARCHAR(20),
-    NumeroLista VARCHAR(50),
-    PRIMARY KEY (CI, NumeroLista),
-    FOREIGN KEY (CI) REFERENCES Persona(CI),
-    FOREIGN KEY (NumeroLista) REFERENCES Lista(NumeroLista)
+    CI INT,
+    Numero_Lista INT,
+    PRIMARY KEY (CI, Numero_Lista),
+    FOREIGN KEY (CI) REFERENCES Candidato(CI),
+    FOREIGN KEY (Numero_Lista) REFERENCES Lista(Numero_Lista)
 );
