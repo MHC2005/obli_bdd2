@@ -1,0 +1,330 @@
+/* Autorizar Container */
+.autorizar-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Autorizar Content */
+.autorizar-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 700px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  animation: slideUp 0.6s ease-out;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Title */
+.autorizar-title {
+  color: #2d3748;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Icon decoration */
+.autorizar-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  color: #ed8936;
+  animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Status Message */
+.status-message {
+  background: rgba(72, 187, 120, 0.1);
+  border: 2px solid rgba(72, 187, 120, 0.3);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  color: #2f855a;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.status-message.pending {
+  background: rgba(237, 137, 54, 0.1);
+  border-color: rgba(237, 137, 54, 0.3);
+  color: #c05621;
+}
+
+.status-message::before {
+  content: '📋';
+  font-size: 1.5rem;
+  margin-right: 10px;
+  display: inline-block;
+}
+
+.status-message.pending::before {
+  content: '⏳';
+}
+
+/* Solicitudes List */
+.solicitudes-container {
+  margin: 30px 0;
+  text-align: left;
+}
+
+.solicitud-item {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin: 15px 0;
+  transition: all 0.3s ease;
+  animation: fadeInUp 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.solicitud-item:nth-child(1) { animation-delay: 0.1s; }
+.solicitud-item:nth-child(2) { animation-delay: 0.2s; }
+.solicitud-item:nth-child(3) { animation-delay: 0.3s; }
+
+.solicitud-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.solicitud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.solicitud-ci {
+  font-weight: 600;
+  color: #2d3748;
+  font-size: 1.1rem;
+}
+
+.solicitud-estado {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: rgba(237, 137, 54, 0.2);
+  color: #c05621;
+}
+
+.solicitud-detalles {
+  color: #4a5568;
+  line-height: 1.5;
+  margin-bottom: 15px;
+}
+
+.solicitud-acciones {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Action Buttons */
+.autorizar-button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.autorizar-button.aprobar {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+}
+
+.autorizar-button.aprobar:hover {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+  box-shadow: 0 5px 15px rgba(72, 187, 120, 0.3);
+  transform: translateY(-2px);
+}
+
+.autorizar-button.rechazar {
+  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+  color: white;
+}
+
+.autorizar-button.rechazar:hover {
+  background: linear-gradient(135deg, #c53030 0%, #9c2323 100%);
+  box-shadow: 0 5px 15px rgba(229, 62, 62, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Navigation Buttons */
+.autorizar-nav {
+  margin-top: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.nav-button {
+  padding: 15px 25px;
+  background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.nav-button:hover {
+  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  box-shadow: 0 10px 25px rgba(113, 128, 150, 0.3);
+  transform: translateY(-2px);
+}
+
+.nav-button::before {
+  content: '↩️';
+  margin-right: 8px;
+}
+
+/* Additional decorative elements */
+.autorizar-content::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 22px;
+  z-index: -1;
+  opacity: 0.3;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #718096;
+}
+
+.empty-state-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+  opacity: 0.6;
+}
+
+.empty-state-text {
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .autorizar-container {
+    padding: 10px;
+  }
+  
+  .autorizar-content {
+    padding: 30px 20px;
+    border-radius: 15px;
+    max-width: 100%;
+  }
+  
+  .autorizar-title {
+    font-size: 1.6rem;
+  }
+  
+  .solicitud-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .solicitud-acciones {
+    justify-content: center;
+  }
+  
+  .autorizar-nav {
+    flex-direction: column;
+  }
+  
+  .nav-button {
+    width: 100%;
+  }
+}
+
+/* Background effects */
+.autorizar-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

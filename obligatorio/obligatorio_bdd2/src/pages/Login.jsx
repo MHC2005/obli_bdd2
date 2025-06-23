@@ -1,29 +1,66 @@
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import './Login.css';
 
 function Login() {
   const navigate = useNavigate();
   const { login } = useUser();
-
   const handleSubmit = (e) => {
     e.preventDefault();
     const ci = e.target.ci.value;
     const cc = e.target.cc.value;
 
-    // Simulación de rol (usar fetch al backend después)
-    const rol = ci === '11111111' ? 'presidente' : 'votante';
+    // Simulación de roles (usar fetch al backend después)
+    let rol = 'votante'; // Por defecto todos son votantes
+    
+    if (ci === '11111111') {
+      rol = 'presidente';
+    }
+    // Ejemplos de usuarios votantes:
+    // CI: 22222222 - Votante
+    // CI: 33333333 - Votante
+    // Cualquier otra cédula también será votante
 
     login({ ci, cc, rol });
     navigate('/home');
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2>Iniciar sesión</h2>
-      <input name="ci" type="text" placeholder="Cédula" required />
-      <input name="cc" type="text" placeholder="Credencial Cívica" required />
-      <button type="submit">Ingresar</button>
-    </form>
+    <div className="login-container">
+      <form className="login-form" onSubmit={handleSubmit}>
+        <div className="login-icon">
+          🗳️
+        </div>        <h2 className="login-title">Sistema de Votación</h2>
+        
+        <div className="login-info">
+          <p><strong>Usuarios de prueba:</strong></p>
+          <p>• Presidente: CI <code>11111111</code></p>
+          <p>• Votante: Cualquier otra CI (ej: <code>22222222</code>)</p>
+        </div>
+        
+        <div className="input-group">
+          <input 
+            className="login-input"
+            name="ci" 
+            type="text" 
+            placeholder="Cédula de Identidad" 
+            required 
+          />
+        </div>
+        <div className="input-group">
+          <input 
+            className="login-input"
+            name="cc" 
+            type="text" 
+            placeholder="Credencial Cívica" 
+            required 
+          />
+        </div>
+        <button className="login-button" type="submit">
+          Ingresar al Sistema
+        </button>
+      </form>
+    </div>
   );
 }
 
