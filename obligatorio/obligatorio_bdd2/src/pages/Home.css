@@ -1,0 +1,235 @@
+/* Home Container */
+.home-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Home Content */
+.home-content {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 40px;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  animation: slideUp 0.6s ease-out;
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Welcome Message */
+.home-welcome {
+  color: #2d3748;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 30px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Icon decoration */
+.home-icon {
+  font-size: 3rem;
+  margin-bottom: 20px;
+  color: #667eea;
+}
+
+/* Button Container */
+.home-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+/* Action Buttons */
+.home-button {
+  width: 100%;
+  padding: 15px 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  overflow: hidden;
+}
+
+.home-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.home-button:active {
+  transform: translateY(0);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+}
+
+/* Voting Button (special style) */
+.home-button.vote {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.home-button.vote:hover {
+  background: linear-gradient(135deg, #38a169 0%, #2f855a 100%);
+  box-shadow: 0 10px 25px rgba(72, 187, 120, 0.3);
+}
+
+/* President Buttons */
+.home-button.president {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+}
+
+.home-button.president:hover {
+  background: linear-gradient(135deg, #dd6b20 0%, #c05621 100%);
+  box-shadow: 0 10px 25px rgba(237, 137, 54, 0.3);
+}
+
+/* Logout Button */
+.home-button.logout {
+  background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+  margin-top: 20px;
+}
+
+.home-button.logout:hover {
+  background: linear-gradient(135deg, #c53030 0%, #9c2323 100%);
+  box-shadow: 0 10px 25px rgba(229, 62, 62, 0.3);
+}
+
+/* Button Icons */
+.home-button::before {
+  content: '';
+  margin-right: 8px;
+}
+
+.home-button.vote::before {
+  content: '🗳️';
+}
+
+.home-button.president::before {
+  content: '👔';
+}
+
+.home-button.logout::before {
+  content: '🚪';
+}
+
+/* Additional decorative elements */
+.home-content::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 22px;
+  z-index: -1;
+  opacity: 0.3;
+}
+
+/* Role Badge */
+.role-badge {
+  display: inline-block;
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-left: 10px;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+/* Responsive design */
+@media (max-width: 480px) {
+  .home-container {
+    padding: 10px;
+  }
+  
+  .home-content {
+    padding: 30px 20px;
+    border-radius: 15px;
+    max-width: 100%;
+  }
+  
+  .home-welcome {
+    font-size: 1.5rem;
+  }
+  
+  .home-button {
+    font-size: 14px;
+    padding: 12px 15px;
+  }
+}
+
+/* Background effects */
+.home-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Animation for buttons */
+.home-button {
+  animation: fadeInUp 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.home-button:nth-child(1) { animation-delay: 0.1s; }
+.home-button:nth-child(2) { animation-delay: 0.2s; }
+.home-button:nth-child(3) { animation-delay: 0.3s; }
+.home-button.logout { animation-delay: 0.4s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
