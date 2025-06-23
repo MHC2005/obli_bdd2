@@ -1,29 +1,21 @@
-import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
+import { useNavigate } from 'react-router-dom';
 
 function Login() {
-  const navigate = useNavigate();
   const { login } = useUser();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const ci = e.target.ci.value;
-    const cc = e.target.cc.value;
-
-    // Simulación de rol (usar fetch al backend después)
-    const rol = ci === '11111111' ? 'presidente' : 'votante';
-
-    login({ ci, cc, rol });
+  const handleLogin = () => {
+    // Simulación de login, podrías reemplazarlo por un fetch a una API real
+    login({ ci: 12345678, rol: 'presidente' });
     navigate('/home');
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2>Iniciar sesión</h2>
-      <input name="ci" type="text" placeholder="Cédula" required />
-      <input name="cc" type="text" placeholder="Credencial Cívica" required />
-      <button type="submit">Ingresar</button>
-    </form>
+    <div>
+      <h2>Login</h2>
+      <button onClick={handleLogin}>Iniciar sesión</button>
+    </div>
   );
 }
 
