@@ -1,10 +1,11 @@
-import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import './Login.css';
+import { useNavigate } from 'react-router-dom';
 
 function Login() {
-  const navigate = useNavigate();
   const { login } = useUser();
+  const navigate = useNavigate();
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const ci = e.target.ci.value;
@@ -12,14 +13,10 @@ function Login() {
 
     // Simulación de roles (usar fetch al backend después)
     let rol = 'votante'; // Por defecto todos son votantes
-    
+
     if (ci === '11111111') {
       rol = 'presidente';
     }
-    // Ejemplos de usuarios votantes:
-    // CI: 22222222 - Votante
-    // CI: 33333333 - Votante
-    // Cualquier otra cédula también será votante
 
     login({ ci, cc, rol });
     navigate('/home');
@@ -30,14 +27,15 @@ function Login() {
       <form className="login-form" onSubmit={handleSubmit}>
         <div className="login-icon">
           🗳️
-        </div>        <h2 className="login-title">Sistema de Votación</h2>
-        
+        </div>
+        <h2 className="login-title">Sistema de Votación</h2>
+
         <div className="login-info">
           <p><strong>Usuarios de prueba:</strong></p>
           <p>• Presidente: CI <code>11111111</code></p>
           <p>• Votante: Cualquier otra CI (ej: <code>22222222</code>)</p>
         </div>
-        
+
         <div className="input-group">
           <input 
             className="login-input"
