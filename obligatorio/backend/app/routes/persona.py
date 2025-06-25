@@ -1,17 +1,32 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from ..database import SessionLocal
-from .. import models
+from fastapi import APIRouter, HTTPException
+from app.database import SessionLocal
+from app.auth import create_access_token
+from pydantic import BaseModel
+from sqlalchemy import text
 
-router = APIRouter(prefix="/personas", tags=["Personas"])
+router = APIRouter()
 
-def get_db():
+class LoginRequest(BaseModel):
+    ci: str
+    password: str
+
+@router.post("/login")
+def login(data: LoginRequest):
     db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-@router.get("/")
-def listar_personas(db: Session = Depends(get_db)):
-    return db.query(models.Persona).all()
+    user = db.execute(
+        text("SELECT * FROM persona WHERE ci = :ci AND serie = :password"),
+        {"ci": data.ci, "password": data.password}
+    ).fetchone()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Credenciales inválidas")
+
+    rol = "presidente" if user["ci"] == "11111111" else "votante"
+    token = create_access_token({"ci": user["ci"], "rol": rol})
+
+    return {"token": token, "ci": user["ci"], "rol": rol}
+
+@router.options("/login")
+def options_login():
+    return {}
