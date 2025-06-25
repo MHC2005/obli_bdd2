@@ -1,26 +1,26 @@
 from fastapi import FastAPI
-from app.routes.persona import router as persona_router  # suponiendo que así tenés tus rutas
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes.persona import router as persona_router
 from app.database import Base, engine
 
 app = FastAPI()
 
-# Crear las tablas
-Base.metadata.create_all(bind=engine)
-
-# CORS (opcional, pero útil para desarrollo frontend)
+# CORS: permitir solicitudes desde el frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173"],  # Frontend de Vite
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Ruta raíz para probar si está vivo el backend
+# Crear las tablas si no existen
+Base.metadata.create_all(bind=engine)
+
+# Ruta raíz para verificar que el backend está vivo
 @app.get("/")
 def read_root():
     return {"mensaje": "API funcionando correctamente"}
 
-# Registrar rutas
+# Registrar las rutas
 app.include_router(persona_router)
