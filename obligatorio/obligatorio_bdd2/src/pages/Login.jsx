@@ -6,28 +6,36 @@ function Login() {
   const { login } = useUser();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const ci = e.target.ci.value;
-    const cc = e.target.cc.value;
+    const password = e.target.password.value;
 
-    // Simulación de roles (usar fetch al backend después)
-    let rol = 'votante'; // Por defecto todos son votantes
+    try {
+      const res = await fetch('http://localhost:8000/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ci, password })
+      });
 
-    if (ci === '11111111') {
-      rol = 'presidente';
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('token', data.token); 
+        login({ ci: data.ci, rol: data.rol });      
+        navigate('/home');
+      } else {
+        alert("Credenciales inválidas");
+      }
+    } catch (err) {
+      alert("Error de conexión");
+      console.error(err);
     }
-
-    login({ ci, cc, rol });
-    navigate('/home');
   };
 
   return (
     <div className="login-container">
       <form className="login-form" onSubmit={handleSubmit}>
-        <div className="login-icon">
-          🗳️
-        </div>
+        <div className="login-icon">🗳️</div>
         <h2 className="login-title">Sistema de Votación</h2>
 
         <div className="login-info">
@@ -48,9 +56,9 @@ function Login() {
         <div className="input-group">
           <input 
             className="login-input"
-            name="cc" 
-            type="text" 
-            placeholder="Credencial Cívica" 
+            name="password" 
+            type="password" 
+            placeholder="Contraseña" 
             required 
           />
         </div>
