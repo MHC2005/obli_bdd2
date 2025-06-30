@@ -1,7 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.persona import router as persona_router
+from app.routes.eleccion import router as eleccion_router
+from app.routes.voto import router as voto_router
+from app.routes.circuito import router as circuito_router
+from app.routes.partido import router as partido_router
 from app.database import Base, engine
+from app.routes.login import router as login_router
 
 app = FastAPI()
 
@@ -24,3 +29,9 @@ def read_root():
 
 # Registrar las rutas
 app.include_router(persona_router)
+app.include_router(eleccion_router)
+app.include_router(voto_router)
+app.include_router(circuito_router)
+app.include_router(partido_router)
+app.include_router(login_router)
+

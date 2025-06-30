@@ -8,7 +8,9 @@ import Personas from './components/Personas';
 import { useUser } from './context/UserContext';
 
 function App() {
-  const { user } = useUser();
+  const { user, loading } = useUser();
+
+  if (loading) return <div>Cargando sesión...</div>; // <-- evitar render hasta que esté listo
 
   return (
     <Routes>
