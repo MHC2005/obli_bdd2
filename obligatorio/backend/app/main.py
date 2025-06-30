@@ -6,6 +6,7 @@ from app.routes.voto import router as voto_router
 from app.routes.circuito import router as circuito_router
 from app.routes.partido import router as partido_router
 from app.database import Base, engine
+from app.routes.login import router as login_router
 
 app = FastAPI()
 
@@ -32,3 +33,5 @@ app.include_router(eleccion_router)
 app.include_router(voto_router)
 app.include_router(circuito_router)
 app.include_router(partido_router)
+app.include_router(login_router)
+
