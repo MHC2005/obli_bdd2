@@ -1,10 +1,22 @@
 import { useUser } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import './Home.css';
 
 function Home() {
   const { user, logout } = useUser();
   const navigate = useNavigate();
+
+  // Redirigir automáticamente según el rol
+  useEffect(() => {
+    if (user) {
+      if (user.rol === 'presidente') {
+        navigate('/admin');
+      } else if (user.rol === 'votante') {
+        navigate('/votar');
+      }
+    }
+  }, [user, navigate]);
 
   const getRoleIcon = (role) => {
     return role === 'presidente' ? '👑' : '🗳️';

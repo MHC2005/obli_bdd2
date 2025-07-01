@@ -10,6 +10,7 @@ ENDPOINTS DISPONIBLES EN VOTOS:
 ✅ GET /votos/circuito/{id_circuito} - Votos de un circuito específico
 ✅ GET /votos/listas - Obtener todas las listas electorales disponibles
 ✅ POST /votos/registrar - Registrar un nuevo voto (único POST permitido)
+✅ GET /votos/verificar/{ci}/{id_eleccion} - Verificar si una persona ya votó en una elección
 """
 
 router = APIRouter(prefix="/votos", tags=["Votos"])
@@ -152,6 +153,22 @@ def registrar_voto(voto_data: dict, db = Depends(get_db)):
         if not circuito_result.fetchone():
             raise HTTPException(status_code=400, detail=f"El circuito {voto_data['id_circuito']} no existe")
         
+        # Verificar si ya existe un voto para este circuito en esta elección
+        # (Asumimos que cada circuito corresponde a una persona única)
+        voto_existente_query = text("""
+            SELECT id_voto FROM voto 
+            WHERE id_circuito = :id_circuito AND id_eleccion = :id_eleccion
+        """)
+        voto_existente_result = db.execute(voto_existente_query, {
+            "id_circuito": voto_data["id_circuito"], 
+            "id_eleccion": voto_data["id_eleccion"]
+        })
+        if voto_existente_result.fetchone():
+            raise HTTPException(
+                status_code=400, 
+                detail="Esta persona ya ha emitido su voto en esta elección. Solo se permite un voto por persona por elección."
+            )
+        
         # Primero obtenemos el próximo ID disponible
         id_query = text("SELECT COALESCE(MAX(id_voto), 0) + 1 FROM voto")
         id_result = db.execute(id_query)
@@ -184,3 +201,37 @@ def registrar_voto(voto_data: dict, db = Depends(get_db)):
         db.rollback()
         print(f"Error en registrar_voto: {str(e)}")  # Debug
         raise HTTPException(status_code=400, detail=f"Error al registrar voto: {str(e)}")
+
+@router.get("/verificar/{ci}/{id_eleccion}")
+def verificar_voto_existente(ci: int, id_eleccion: int, db = Depends(get_db)):
+    """
+    Verifica si una persona ya votó en una elección específica
+    """
+    try:
+        # Buscar si ya existe un voto para esta persona en esta elección
+        query = text("""
+            SELECT v.id_voto, v.fecha_hora_emision, v.estado
+            FROM voto v
+            INNER JOIN persona p ON p.id_circuito = v.id_circuito
+            WHERE p.ci = :ci AND v.id_eleccion = :id_eleccion
+            LIMIT 1
+        """)
+        result = db.execute(query, {"ci": ci, "id_eleccion": id_eleccion})
+        voto_existente = result.fetchone()
+        
+        if voto_existente:
+            return {
+                "ya_voto": True,
+                "id_voto": voto_existente.id_voto,
+                "fecha_hora_emision": voto_existente.fecha_hora_emision,
+                "estado": voto_existente.estado,
+                "mensaje": "Esta persona ya ha emitido su voto en esta elección"
+            }
+        else:
+            return {
+                "ya_voto": False,
+                "mensaje": "Esta persona puede votar en esta elección"
+            }
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error verificando voto: {str(e)}")
