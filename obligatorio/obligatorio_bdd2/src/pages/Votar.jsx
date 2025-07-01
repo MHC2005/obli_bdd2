@@ -11,6 +11,8 @@ function Votar() {
   const [listas, setListas] = useState([]);
   const [eleccionActiva, setEleccionActiva] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [yaVoto, setYaVoto] = useState(false);
+  const [infoVotoExistente, setInfoVotoExistente] = useState(null);
 
   useEffect(() => {
     // Cargar listas electorales y elección activa
@@ -35,6 +37,7 @@ function Votar() {
 
         // Obtener elección activa (sin autenticación requerida)
         const resEleccion = await fetch('http://localhost:8000/elecciones/activa');
+        let eleccionObtenida = null;
         
         console.log('Respuesta elección activa:', resEleccion.status);
         if (resEleccion.ok) {
@@ -47,6 +50,7 @@ function Votar() {
             console.warn('Continuando sin elección activa definida');
           } else {
             setEleccionActiva(eleccion);
+            eleccionObtenida = eleccion;
           }
         } else {
           const errorEleccion = await resEleccion.text();
@@ -59,12 +63,32 @@ function Votar() {
               if (elecciones.length > 0) {
                 console.log('Usando primera elección disponible:', elecciones[0]);
                 setEleccionActiva(elecciones[0]);
+                eleccionObtenida = elecciones[0];
               } else {
                 console.error('No hay elecciones disponibles en el sistema');
               }
             }
           } catch (fallbackError) {
             console.error('Error obteniendo elecciones de fallback:', fallbackError);
+          }
+        }
+
+        // Verificar si el usuario ya votó en la elección activa
+        if (user && eleccionObtenida) {
+          try {
+            const resVerificar = await fetch(`http://localhost:8000/votos/verificar/${user.ci}/${eleccionObtenida.id_eleccion}`);
+            if (resVerificar.ok) {
+              const verificacion = await resVerificar.json();
+              console.log('Verificación de voto:', verificacion);
+              if (verificacion.ya_voto) {
+                setYaVoto(true);
+                setInfoVotoExistente(verificacion);
+              }
+            } else {
+              console.error('Error verificando voto existente');
+            }
+          } catch (verifyError) {
+            console.error('Error en verificación de voto:', verifyError);
           }
         }
       } catch (error) {
@@ -177,6 +201,65 @@ function Votar() {
         <div className="votar-content">
           <div className="votar-icon">⏳</div>
           <h2 className="votar-title">Cargando opciones de votación...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  // Si el usuario ya votó, mostrar mensaje informativo
+  if (yaVoto) {
+    return (
+      <div className="votar-container">
+        <div className="votar-content">
+          <div className="votar-icon">✅</div>
+          <h2 className="votar-title">Voto ya emitido</h2>
+          
+          <div className="voto-ya-emitido" style={{
+            background: '#d4edda', 
+            padding: '20px', 
+            margin: '20px 0', 
+            borderRadius: '8px', 
+            border: '1px solid #c3e6cb',
+            textAlign: 'center'
+          }}>
+            <h3 style={{color: '#155724', marginBottom: '15px'}}>
+              ¡Su voto ya fue registrado con éxito!
+            </h3>
+            <p style={{color: '#155724', marginBottom: '10px'}}>
+              <strong>Fecha y hora:</strong> {infoVotoExistente?.fecha_hora_emision ? 
+                new Date(infoVotoExistente.fecha_hora_emision).toLocaleString('es-UY') : 
+                'No disponible'}
+            </p>
+            <p style={{color: '#155724', marginBottom: '10px'}}>
+              <strong>Estado:</strong> {infoVotoExistente?.estado || 'Válido'}
+            </p>
+            <p style={{color: '#155724'}}>
+              Recuerde que solo se permite un voto por persona por elección.
+            </p>
+          </div>
+
+          {eleccionActiva && (
+            <div className="eleccion-info">
+              <strong>Elección:</strong> {eleccionActiva.tipo} - {eleccionActiva.fecha}
+            </div>
+          )}
+          
+          {user && (
+            <div className="usuario-info">
+              <strong>Votante:</strong> {user.barrio}, {user.departamento}
+              <br />
+              <small>Circuito: {user.id_circuito} | CI: {user.ci}</small>
+            </div>
+          )}
+
+          <div className="votar-nav">
+            <button 
+              className="nav-button" 
+              onClick={handleVolver}
+            >
+              Volver al Inicio
+            </button>
+          </div>
         </div>
       </div>
     );
