@@ -13,7 +13,7 @@ app = FastAPI()
 # CORS: permitir solicitudes desde el frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Frontend de Vite
+    allow_origins=["http://localhost:5173", "http://localhost:5174"],  # Frontend de Vite (puertos alternativos)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

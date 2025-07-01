@@ -21,7 +21,14 @@ function Login() {
       if (res.ok) {
         const data = await res.json();
         localStorage.setItem('token', data.token); 
-        login({ ci: data.ci, rol: data.rol });      
+        login({
+          ci: data.ci,
+          rol: data.rol,
+          nombre_completo: data.nombre_completo,
+          id_circuito: data.id_circuito,
+          barrio: data.barrio,
+          departamento: data.departamento
+        });      
         navigate('/home');
       } else {
         alert("Credenciales inválidas");

@@ -7,6 +7,7 @@ ENDPOINTS DISPONIBLES EN ELECCIONES:
 ✅ GET /elecciones/ - Listar todas las elecciones ordenadas por fecha
 ✅ GET /elecciones/{id_eleccion} - Obtener elección específica por ID
 ✅ GET /elecciones/{id_eleccion}/candidatos - Candidatos que se presentan en una elección
+✅ GET /elecciones/activa - Obtener elección activa
 """
 
 router = APIRouter(prefix="/elecciones", tags=["Elecciones"])
@@ -65,3 +66,47 @@ def obtener_candidatos_por_eleccion(id_eleccion: int, db = Depends(get_db)):
             "cargo_postulado": row.cargo_postulado
         })
     return candidatos
+
+@router.get("/activa")
+def obtener_eleccion_activa(db = Depends(get_db)):
+    # Primero intentamos encontrar una elección que esté en curso hoy
+    query_hoy = text("""
+        SELECT id_eleccion, fecha, tipo 
+        FROM eleccion 
+        WHERE fecha = CURDATE()
+        LIMIT 1
+    """)
+    result = db.execute(query_hoy)
+    row = result.fetchone()
+    
+    # Si no hay elección hoy, tomamos la más reciente del pasado
+    if row is None:
+        query_pasado = text("""
+            SELECT id_eleccion, fecha, tipo 
+            FROM eleccion 
+            WHERE fecha <= CURDATE()
+            ORDER BY fecha DESC
+            LIMIT 1
+        """)
+        result = db.execute(query_pasado)
+        row = result.fetchone()
+    
+    # Si tampoco hay elecciones pasadas, tomamos cualquier elección para desarrollo
+    if row is None:
+        query_cualquiera = text("""
+            SELECT id_eleccion, fecha, tipo 
+            FROM eleccion 
+            ORDER BY id_eleccion DESC
+            LIMIT 1
+        """)
+        result = db.execute(query_cualquiera)
+        row = result.fetchone()
+    
+    if row is None:
+        return {"error": "No hay elecciones disponibles"}
+    
+    return {
+        "id_eleccion": row.id_eleccion,
+        "fecha": row.fecha,
+        "tipo": row.tipo
+    }

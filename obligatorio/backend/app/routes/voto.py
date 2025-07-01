@@ -8,6 +8,7 @@ ENDPOINTS DISPONIBLES EN VOTOS:
 ✅ GET /votos/ - Listar todos los votos ordenados por fecha
 ✅ GET /votos/eleccion/{id_eleccion} - Votos de una elección específica con info de listas
 ✅ GET /votos/circuito/{id_circuito} - Votos de un circuito específico
+✅ GET /votos/listas - Obtener todas las listas electorales disponibles
 ✅ POST /votos/registrar - Registrar un nuevo voto (único POST permitido)
 """
 
@@ -89,16 +90,81 @@ def obtener_votos_por_circuito(id_circuito: int, db = Depends(get_db)):
         })
     return votos
 
+@router.get("/listas")
+def obtener_listas_electorales(db = Depends(get_db)):
+    query = text("""
+        SELECT l.numero_lista, l.organ, l.departamento,
+               p.nombre_completo as candidato_nombre,
+               pp.nombre as partido_nombre
+        FROM lista l
+        LEFT JOIN candidato c ON l.ci = c.ci
+        LEFT JOIN persona p ON c.ci = p.ci
+        LEFT JOIN partido_politico pp ON l.id_partido_politico = pp.id_partido_politico
+        ORDER BY l.numero_lista
+    """)
+    result = db.execute(query)
+    listas = []
+    for row in result:
+        listas.append({
+            "numero_lista": row.numero_lista,
+            "organ": row.organ,
+            "departamento": row.departamento,
+            "candidato_nombre": row.candidato_nombre,
+            "partido_nombre": row.partido_nombre
+        })
+    return listas
+
 @router.post("/registrar")
 def registrar_voto(voto_data: dict, db = Depends(get_db)):
     try:
+        print(f"Datos recibidos para voto: {voto_data}")  # Debug
+        
+        # Validar campos requeridos
+        if not voto_data.get("numero_lista"):
+            raise HTTPException(status_code=400, detail="numero_lista es requerido")
+        if not voto_data.get("id_eleccion"):
+            raise HTTPException(status_code=400, detail="id_eleccion es requerido")
+        if not voto_data.get("id_circuito"):
+            raise HTTPException(status_code=400, detail="id_circuito es requerido")
+        
+        # Validar que la lista existe
+        lista_query = text("SELECT numero_lista FROM lista WHERE numero_lista = :numero_lista")
+        lista_result = db.execute(lista_query, {"numero_lista": voto_data.get("numero_lista")})
+        if not lista_result.fetchone():
+            # Obtener listas disponibles para mostrar en el error
+            listas_query = text("SELECT numero_lista FROM lista ORDER BY numero_lista")
+            listas_result = db.execute(listas_query)
+            listas_disponibles = [str(row.numero_lista) for row in listas_result]
+            raise HTTPException(
+                status_code=400, 
+                detail=f"La lista {voto_data.get('numero_lista')} no existe. Listas disponibles: {', '.join(listas_disponibles)}"
+            )
+        
+        # Validar que la elección existe
+        eleccion_query = text("SELECT id_eleccion FROM eleccion WHERE id_eleccion = :id_eleccion")
+        eleccion_result = db.execute(eleccion_query, {"id_eleccion": voto_data["id_eleccion"]})
+        if not eleccion_result.fetchone():
+            raise HTTPException(status_code=400, detail=f"La elección {voto_data['id_eleccion']} no existe")
+        
+        # Validar que el circuito existe
+        circuito_query = text("SELECT id_circuito FROM circuito WHERE id_circuito = :id_circuito")
+        circuito_result = db.execute(circuito_query, {"id_circuito": voto_data["id_circuito"]})
+        if not circuito_result.fetchone():
+            raise HTTPException(status_code=400, detail=f"El circuito {voto_data['id_circuito']} no existe")
+        
+        # Primero obtenemos el próximo ID disponible
+        id_query = text("SELECT COALESCE(MAX(id_voto), 0) + 1 FROM voto")
+        id_result = db.execute(id_query)
+        next_id = id_result.fetchone()[0]
+        
+        # Ahora insertamos el voto con el ID generado
         query = text("""
-            INSERT INTO voto (fecha_hora_emision, observado, estado, id_eleccion, id_circuito, numero_lista)
-            VALUES (:fecha_hora, :observado, :estado, :id_eleccion, :id_circuito, :numero_lista)
-            RETURNING id_voto
+            INSERT INTO voto (id_voto, fecha_hora_emision, observado, estado, id_eleccion, id_circuito, numero_lista)
+            VALUES (:id_voto, :fecha_hora, :observado, :estado, :id_eleccion, :id_circuito, :numero_lista)
         """)
         
-        result = db.execute(query, {
+        db.execute(query, {
+            "id_voto": next_id,
             "fecha_hora": datetime.now(),
             "observado": voto_data.get("observado", False),
             "estado": voto_data.get("estado", "Válido"),
@@ -108,9 +174,13 @@ def registrar_voto(voto_data: dict, db = Depends(get_db)):
         })
         
         db.commit()
-        new_id = result.fetchone()[0]
-        return {"mensaje": "Voto registrado exitosamente", "id_voto": new_id}
+        print(f"Voto registrado exitosamente con ID: {next_id}")  # Debug
+        return {"mensaje": "Voto registrado exitosamente", "id_voto": next_id}
         
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
+        print(f"Error en registrar_voto: {str(e)}")  # Debug
         raise HTTPException(status_code=400, detail=f"Error al registrar voto: {str(e)}")
