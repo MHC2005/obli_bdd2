@@ -28,8 +28,16 @@ function Login() {
           id_circuito: data.id_circuito,
           barrio: data.barrio,
           departamento: data.departamento
-        });      
-        navigate('/home');
+        });
+
+        // Redirigir según el rol del usuario
+        if (data.rol === 'presidente') {
+          console.log('Presidente detectado, redirigiendo a administración');
+          navigate('/admin');
+        } else {
+          console.log('Votante detectado, redirigiendo a votar');
+          navigate('/votar');
+        }
       } else {
         alert("Credenciales inválidas");
       }
@@ -46,9 +54,10 @@ function Login() {
         <h2 className="login-title">Sistema de Votación</h2>
 
         <div className="login-info">
-          <p><strong>Usuarios de prueba:</strong></p>
-          <p>• Presidente: CI <code>11111111</code></p>
-          <p>• Votante: Cualquier otra CI (ej: <code>22222222</code>)</p>
+          <p><strong>Acceso al Sistema:</strong></p>
+          <p>• <strong>Presidente:</strong> CI <code>11111111</code> → Panel de Administración</p>
+          <p>• <strong>Votantes:</strong> Cualquier otra CI (ej: <code>22222222</code>) → Sistema de Votación</p>
+          <p><small>Contraseña para todos: <code>password</code></small></p>
         </div>
 
         <div className="input-group">

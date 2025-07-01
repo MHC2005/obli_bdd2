@@ -5,7 +5,7 @@ import './Votar.css';
 
 function Votar() {
   const navigate = useNavigate();
-  const { user } = useUser();
+  const { user, logout } = useUser();
   const [selectedOption, setSelectedOption] = useState('');
   const [isVoting, setIsVoting] = useState(false);
   const [listas, setListas] = useState([]);
@@ -192,7 +192,17 @@ function Votar() {
   };
 
   const handleVolver = () => {
-    navigate('/home');
+    // Mostrar opciones al usuario
+    const opciones = yaVoto 
+      ? "Su voto ya ha sido registrado.\n\n¿Desea cerrar sesión?"
+      : "¿Desea cerrar sesión y salir del sistema de votación?";
+      
+    const confirmar = confirm(opciones);
+    
+    if (confirmar) {
+      logout();
+      navigate('/login');
+    }
   };
 
   if (loading) {
@@ -257,7 +267,7 @@ function Votar() {
               className="nav-button" 
               onClick={handleVolver}
             >
-              Volver al Inicio
+              🚪 Salir del Sistema
             </button>
           </div>
         </div>
@@ -373,7 +383,7 @@ function Votar() {
             onClick={handleVolver}
             disabled={isVoting}
           >
-            Volver al Inicio
+            🚪 Salir del Sistema
           </button>
         </div>
       </div>
