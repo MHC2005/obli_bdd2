@@ -120,6 +120,30 @@ def registrar_voto(voto_data: dict, db = Depends(get_db)):
     try:
         print(f"Datos recibidos para voto: {voto_data}")  # Debug
         
+        # Verificar si la mesa está abierta
+        try:
+            import json
+            from pathlib import Path
+            
+            config_dir = Path("config")
+            config_file = config_dir / "mesa_estado.json"
+            
+            if config_file.exists():
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    estado_mesa = config.get('estado', 'abierta')
+                    
+                if estado_mesa == 'cerrada':
+                    raise HTTPException(
+                        status_code=403, 
+                        detail="La mesa de votación está cerrada. No se permiten nuevos votos."
+                    )
+        except HTTPException:
+            raise
+        except:
+            # Si no existe el archivo o hay error, asumir que está abierta
+            pass
+        
         # Validar campos requeridos
         if not voto_data.get("numero_lista"):
             raise HTTPException(status_code=400, detail="numero_lista es requerido")
@@ -599,3 +623,251 @@ def diagnostico_duplicados(db = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en diagnóstico: {str(e)}")
+
+@router.get("/estado-mesa")
+def obtener_estado_mesa():
+    """
+    Obtiene el estado actual de la mesa de votación usando archivos del sistema
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        # Crear directorio de configuración si no existe
+        config_dir = Path("config")
+        config_dir.mkdir(exist_ok=True)
+        config_file = config_dir / "mesa_estado.json"
+        
+        # Leer estado desde archivo
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                estado = config.get('estado', 'abierta')
+        else:
+            # Crear archivo con estado por defecto
+            estado = 'abierta'
+            config = {
+                'estado': estado,
+                'fecha_modificacion': datetime.now().isoformat(),
+                'descripcion': 'Estado inicial de la mesa'
+            }
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        return {
+            "estado": estado,
+            "mensaje": f"La mesa de votación está {estado}",
+            "permite_votos": estado == 'abierta'
+        }
+        
+    except Exception as e:
+        # Si hay cualquier error, asumir que la mesa está abierta
+        return {
+            "estado": "abierta",
+            "mensaje": "La mesa de votación está abierta (configuración por defecto)",
+            "permite_votos": True
+        }
+
+@router.post("/cerrar-mesa")
+def cerrar_mesa(data: dict):
+    """
+    Cierra la mesa de votación usando archivos del sistema
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        motivo = data.get("motivo", "Cierre de mesa por finalización del período electoral")
+        fecha_cierre = datetime.now()
+        
+        # Crear directorio de configuración si no existe
+        config_dir = Path("config")
+        config_dir.mkdir(exist_ok=True)
+        config_file = config_dir / "mesa_estado.json"
+        
+        # Leer estado actual
+        estado_actual = 'abierta'
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                estado_actual = config.get('estado', 'abierta')
+        
+        if estado_actual == 'cerrada':
+            return {
+                "mensaje": "La mesa ya está cerrada",
+                "estado": "cerrada",
+                "error": False
+            }
+        
+        # Actualizar estado a cerrada
+        config = {
+            'estado': 'cerrada',
+            'fecha_modificacion': fecha_cierre.isoformat(),
+            'descripcion': f"Mesa cerrada: {motivo}",
+            'motivo': motivo
+        }
+        
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        # Crear log de eventos
+        log_file = config_dir / "mesa_eventos.log"
+        log_entry = f"{fecha_cierre.isoformat()} - CIERRE: {motivo}\n"
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(log_entry)
+        
+        return {
+            "mensaje": "Mesa de votación cerrada exitosamente",
+            "estado": "cerrada",
+            "fecha_cierre": fecha_cierre.isoformat(),
+            "motivo": motivo,
+            "error": False
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error cerrando mesa: {str(e)}")
+
+@router.post("/abrir-mesa")
+def abrir_mesa(data: dict):
+    """
+    Reabre la mesa de votación usando archivos del sistema
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        motivo = data.get("motivo", "Reapertura de mesa por decisión administrativa")
+        fecha_apertura = datetime.now()
+        
+        # Crear directorio de configuración si no existe
+        config_dir = Path("config")
+        config_dir.mkdir(exist_ok=True)
+        config_file = config_dir / "mesa_estado.json"
+        
+        # Leer estado actual
+        estado_actual = 'abierta'
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                estado_actual = config.get('estado', 'abierta')
+        
+        if estado_actual == 'abierta':
+            return {
+                "mensaje": "La mesa ya está abierta",
+                "estado": "abierta",
+                "error": False
+            }
+        
+        # Actualizar estado a abierta
+        config = {
+            'estado': 'abierta',
+            'fecha_modificacion': fecha_apertura.isoformat(),
+            'descripcion': f"Mesa reabierta: {motivo}",
+            'motivo': motivo
+        }
+        
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        # Crear log de eventos
+        log_file = config_dir / "mesa_eventos.log"
+        log_entry = f"{fecha_apertura.isoformat()} - APERTURA: {motivo}\n"
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(log_entry)
+        
+        return {
+            "mensaje": "Mesa de votación reabierta exitosamente",
+            "estado": "abierta",
+            "fecha_apertura": fecha_apertura.isoformat(),
+            "motivo": motivo,
+            "error": False
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error abriendo mesa: {str(e)}")
+
+@router.post("/inicializar-configuracion")
+def inicializar_configuracion():
+    """
+    Inicializa la configuración del sistema usando archivos
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        # Crear directorio de configuración si no existe
+        config_dir = Path("config")
+        config_dir.mkdir(exist_ok=True)
+        config_file = config_dir / "mesa_estado.json"
+        
+        # Si no existe el archivo, crearlo con configuración inicial
+        if not config_file.exists():
+            config = {
+                'estado': 'abierta',
+                'fecha_modificacion': datetime.now().isoformat(),
+                'descripcion': 'Estado inicial de la mesa de votación',
+                'motivo': 'Inicialización del sistema'
+            }
+            
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            
+            return {"mensaje": "Configuración inicializada correctamente con archivos"}
+        else:
+            return {"mensaje": "Configuración ya existe"}
+        
+    except Exception as e:
+        return {"mensaje": f"Error inicializando configuración: {str(e)}"}
+
+@router.get("/debug-configuracion")
+def debug_configuracion():
+    """
+    Endpoint de diagnóstico para verificar el estado de la configuración usando archivos
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        config_dir = Path("config")
+        config_file = config_dir / "mesa_estado.json"
+        log_file = config_dir / "mesa_eventos.log"
+        
+        # Leer configuración actual
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                estado_mesa = config.get('estado', 'no_definido')
+        else:
+            estado_mesa = "archivo_no_existe"
+            config = {}
+        
+        # Leer log de eventos
+        eventos = []
+        if log_file.exists():
+            with open(log_file, 'r', encoding='utf-8') as f:
+                eventos = f.readlines()
+        
+        return {
+            "estado_mesa_actual": estado_mesa,
+            "configuracion_completa": config,
+            "archivo_existe": config_file.exists(),
+            "ruta_archivo": str(config_file.absolute()),
+            "eventos_recientes": eventos[-10:] if eventos else [],  # Últimos 10 eventos
+            "total_eventos": len(eventos)
+        }
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "estado_mesa_actual": "error",
+            "configuracion_completa": {},
+            "archivo_existe": False,
+            "ruta_archivo": "error",
+            "eventos_recientes": [],
+            "total_eventos": 0
+        }
