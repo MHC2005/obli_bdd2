@@ -48,7 +48,7 @@ def listar_votos(db = Depends(get_db)):
 def obtener_votos_por_eleccion(id_eleccion: int, db = Depends(get_db)):
     query = text("""
         SELECT v.id_voto, v.fecha_hora_emision, v.observado, v.estado,
-               v.id_circuito, v.numero_lista, l.organ, l.departamento
+               v.id_circuito, v.numero_lista, l.organ as nombre_lista, l.departamento
         FROM voto v
         LEFT JOIN lista l ON v.numero_lista = l.numero_lista
         WHERE v.id_eleccion = :id_eleccion
@@ -64,7 +64,7 @@ def obtener_votos_por_eleccion(id_eleccion: int, db = Depends(get_db)):
             "estado": row.estado,
             "id_circuito": row.id_circuito,
             "numero_lista": row.numero_lista,
-            "organ": row.organ,
+            "nombre_lista": row.nombre_lista,
             "departamento": row.departamento
         })
     return votos
@@ -119,6 +119,30 @@ def obtener_listas_electorales(db = Depends(get_db)):
 def registrar_voto(voto_data: dict, db = Depends(get_db)):
     try:
         print(f"Datos recibidos para voto: {voto_data}")  # Debug
+        
+        # Verificar si la mesa está abierta
+        try:
+            import json
+            from pathlib import Path
+            
+            config_dir = Path("config")
+            config_file = config_dir / "mesa_estado.json"
+            
+            if config_file.exists():
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    estado_mesa = config.get('estado', 'abierta')
+                    
+                if estado_mesa == 'cerrada':
+                    raise HTTPException(
+                        status_code=403, 
+                        detail="La mesa de votación está cerrada. No se permiten nuevos votos."
+                    )
+        except HTTPException:
+            raise
+        except:
+            # Si no existe el archivo o hay error, asumir que está abierta
+            pass
         
         # Validar campos requeridos
         if not voto_data.get("numero_lista"):
@@ -212,7 +236,8 @@ def verificar_voto_existente(ci: int, id_eleccion: int, db = Depends(get_db)):
         query = text("""
             SELECT v.id_voto, v.fecha_hora_emision, v.estado
             FROM voto v
-            INNER JOIN persona p ON p.id_circuito = v.id_circuito
+            INNER JOIN ciudadano cd ON cd.id_circuito = v.id_circuito
+            INNER JOIN persona p ON p.ci = cd.ci
             WHERE p.ci = :ci AND v.id_eleccion = :id_eleccion
             LIMIT 1
         """)
@@ -235,3 +260,614 @@ def verificar_voto_existente(ci: int, id_eleccion: int, db = Depends(get_db)):
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error verificando voto: {str(e)}")
+
+@router.get("/observados")
+def obtener_votos_observados(db = Depends(get_db)):
+    """
+    Obtiene todos los votos marcados como observados que requieren autorización
+    """
+    try:
+        query = text("""
+            SELECT DISTINCT v.id_voto, v.fecha_hora_emision, v.observado, v.estado,
+                   v.id_eleccion, v.id_circuito, v.numero_lista,
+                   p.ci, p.nombre_completo, e.tipo as tipo_eleccion,
+                   c.barrio, c.departamento
+            FROM voto v
+            INNER JOIN ciudadano cd ON cd.id_circuito = v.id_circuito
+            INNER JOIN persona p ON p.ci = cd.ci
+            INNER JOIN eleccion e ON v.id_eleccion = e.id_eleccion
+            INNER JOIN circuito c ON v.id_circuito = c.id_circuito
+            WHERE v.observado = TRUE AND v.estado = 'Observado'
+            ORDER BY v.fecha_hora_emision DESC
+        """)
+        result = db.execute(query)
+        votos_observados = []
+        
+        for row in result:
+            votos_observados.append({
+                "id_voto": row.id_voto,
+                "fecha_hora_emision": row.fecha_hora_emision,
+                "observado": row.observado,
+                "estado": row.estado,
+                "id_eleccion": row.id_eleccion,
+                "id_circuito": row.id_circuito,
+                "numero_lista": row.numero_lista,
+                "ci": row.ci,
+                "nombre_completo": row.nombre_completo,
+                "tipo_eleccion": row.tipo_eleccion,
+                "barrio": row.barrio,
+                "departamento": row.departamento
+            })
+        
+        return votos_observados
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error obteniendo votos observados: {str(e)}")
+
+@router.post("/autorizar/{id_voto}")
+def autorizar_voto_observado(id_voto: int, accion: dict, db = Depends(get_db)):
+    """
+    Autoriza o rechaza un voto observado
+    accion debe contener: {"decision": "aprobar" | "rechazar", "motivo": "texto opcional"}
+    """
+    try:
+        # Verificar que el voto existe y está observado
+        query_verificar = text("""
+            SELECT id_voto, estado, observado 
+            FROM voto 
+            WHERE id_voto = :id_voto AND observado = TRUE
+        """)
+        result = db.execute(query_verificar, {"id_voto": id_voto})
+        voto = result.fetchone()
+        
+        if not voto:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"No se encontró voto observado con ID {id_voto}"
+            )
+        
+        # Determinar el nuevo estado según la decisión
+        decision = accion.get("decision")
+        if decision == "aprobar":
+            nuevo_estado = "Válido"
+        elif decision == "rechazar":
+            nuevo_estado = "Rechazado"
+        else:
+            raise HTTPException(
+                status_code=400, 
+                detail="La decisión debe ser 'aprobar' o 'rechazar'"
+            )
+        
+        # Actualizar el voto
+        query_actualizar = text("""
+            UPDATE voto 
+            SET estado = :nuevo_estado, observado = FALSE 
+            WHERE id_voto = :id_voto
+        """)
+        db.execute(query_actualizar, {
+            "nuevo_estado": nuevo_estado,
+            "id_voto": id_voto
+        })
+        db.commit()
+        
+        return {
+            "id_voto": id_voto,
+            "decision": decision,
+            "nuevo_estado": nuevo_estado,
+            "motivo": accion.get("motivo", ""),
+            "mensaje": f"Voto {id_voto} {decision}do exitosamente"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error autorizando voto: {str(e)}")
+
+@router.post("/marcar-observado")
+def marcar_voto_observado(voto_data: dict, db = Depends(get_db)):
+    """
+    Registra un voto como observado cuando hay alguna irregularidad o consulta
+    """
+    try:
+        # Validaciones básicas
+        required_fields = ["numero_lista", "id_eleccion", "id_circuito", "motivo_observacion"]
+        for field in required_fields:
+            if field not in voto_data:
+                raise HTTPException(status_code=400, detail=f"Campo requerido: {field}")
+        
+        # Verificar que no exista ya un voto para este circuito en esta elección
+        voto_existente_query = text("""
+            SELECT id_voto FROM voto 
+            WHERE id_circuito = :id_circuito AND id_eleccion = :id_eleccion
+        """)
+        voto_existente_result = db.execute(voto_existente_query, {
+            "id_circuito": voto_data["id_circuito"], 
+            "id_eleccion": voto_data["id_eleccion"]
+        })
+        if voto_existente_result.fetchone():
+            raise HTTPException(
+                status_code=400, 
+                detail="Esta persona ya ha emitido su voto en esta elección."
+            )
+        
+        # Obtener el próximo ID disponible
+        id_query = text("SELECT COALESCE(MAX(id_voto), 0) + 1 FROM voto")
+        id_result = db.execute(id_query)
+        next_id = id_result.fetchone()[0]
+        
+        # Insertar el voto observado
+        query = text("""
+            INSERT INTO voto (id_voto, fecha_hora_emision, observado, estado, id_eleccion, id_circuito, numero_lista)
+            VALUES (:id_voto, :fecha_hora, :observado, :estado, :id_eleccion, :id_circuito, :numero_lista)
+        """)
+        
+        db.execute(query, {
+            "id_voto": next_id,
+            "fecha_hora": datetime.now(),
+            "observado": True,
+            "estado": "Observado",
+            "id_eleccion": voto_data["id_eleccion"],
+            "id_circuito": voto_data["id_circuito"],
+            "numero_lista": voto_data["numero_lista"]
+        })
+        db.commit()
+        
+        return {
+            "id_voto": next_id,
+            "mensaje": "Voto registrado como observado exitosamente",
+            "motivo": voto_data["motivo_observacion"],
+            "estado": "Observado",
+            "requiere_autorizacion": True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error registrando voto observado: {str(e)}")
+
+@router.post("/crear-voto-observado-prueba")
+def crear_voto_observado_prueba(db = Depends(get_db)):
+    """
+    Crea un voto observado de prueba para testing
+    """
+    try:
+        # Obtener una elección activa
+        eleccion_query = text("SELECT id_eleccion FROM eleccion LIMIT 1")
+        eleccion_result = db.execute(eleccion_query)
+        eleccion = eleccion_result.fetchone()
+        
+        if not eleccion:
+            raise HTTPException(status_code=400, detail="No hay elecciones disponibles")
+        
+        # Buscar un circuito que NO haya votado en esta elección
+        circuito_query = text("""
+            SELECT c.id_circuito 
+            FROM circuito c
+            LEFT JOIN voto v ON c.id_circuito = v.id_circuito AND v.id_eleccion = :id_eleccion
+            WHERE v.id_voto IS NULL
+            LIMIT 1
+        """)
+        circuito_result = db.execute(circuito_query, {"id_eleccion": eleccion.id_eleccion})
+        circuito = circuito_result.fetchone()
+        
+        if not circuito:
+            # Si no hay circuitos disponibles, crear uno temporal
+            # Obtener el próximo ID de circuito
+            max_circuito_query = text("SELECT COALESCE(MAX(id_circuito), 0) + 1 FROM circuito")
+            max_circuito_result = db.execute(max_circuito_query)
+            nuevo_id_circuito = max_circuito_result.fetchone()[0]
+            
+            # Crear nuevo circuito temporal
+            crear_circuito_query = text("""
+                INSERT INTO circuito (id_circuito, barrio, departamento)
+                VALUES (:id_circuito, 'Circuito Prueba', 'Montevideo')
+            """)
+            db.execute(crear_circuito_query, {"id_circuito": nuevo_id_circuito})
+            
+            # Crear persona asociada al circuito
+            crear_persona_query = text("""
+                INSERT INTO persona (ci, nombre_completo, password)
+                VALUES (:ci, 'Votante Prueba', 'password')
+            """)
+            ci_prueba = 90000000 + nuevo_id_circuito  # CI único
+            db.execute(crear_persona_query, {"ci": ci_prueba})
+            
+            # Crear ciudadano vinculado
+            crear_ciudadano_query = text("""
+                INSERT INTO ciudadano (ci, id_circuito)
+                VALUES (:ci, :id_circuito)
+            """)
+            db.execute(crear_ciudadano_query, {
+                "ci": ci_prueba,
+                "id_circuito": nuevo_id_circuito
+            })
+            
+            id_circuito_usar = nuevo_id_circuito
+        else:
+            id_circuito_usar = circuito.id_circuito
+        
+        # Obtener el próximo ID de voto
+        id_query = text("SELECT COALESCE(MAX(id_voto), 0) + 1 FROM voto")
+        next_id = db.execute(id_query).fetchone()[0]
+        
+        # Crear voto observado
+        query = text("""
+            INSERT INTO voto (id_voto, fecha_hora_emision, observado, estado, id_eleccion, id_circuito, numero_lista)
+            VALUES (:id_voto, :fecha_hora, TRUE, 'Observado', :id_eleccion, :id_circuito, 101)
+        """)
+        
+        db.execute(query, {
+            "id_voto": next_id,
+            "fecha_hora": datetime.now(),
+            "id_eleccion": eleccion.id_eleccion,
+            "id_circuito": id_circuito_usar
+        })
+        db.commit()
+        
+        return {
+            "id_voto": next_id,
+            "mensaje": "Voto observado de prueba creado exitosamente",
+            "id_eleccion": eleccion.id_eleccion,
+            "id_circuito": id_circuito_usar,
+            "circuito_creado": circuito is None
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creando voto de prueba: {str(e)}")
+
+@router.delete("/limpiar-votos-prueba")
+def limpiar_votos_prueba(db = Depends(get_db)):
+    """
+    Elimina todos los votos observados de prueba y circuitos temporales
+    """
+    try:
+        # Eliminar votos observados de circuitos de prueba
+        delete_votos_query = text("""
+            DELETE FROM voto 
+            WHERE id_circuito IN (
+                SELECT id_circuito FROM circuito 
+                WHERE barrio = 'Circuito Prueba'
+            )
+        """)
+        votos_eliminados = db.execute(delete_votos_query)
+        
+        # Eliminar ciudadanos de circuitos de prueba
+        delete_ciudadanos_query = text("""
+            DELETE FROM ciudadano 
+            WHERE id_circuito IN (
+                SELECT id_circuito FROM circuito 
+                WHERE barrio = 'Circuito Prueba'
+            )
+        """)
+        ciudadanos_eliminados = db.execute(delete_ciudadanos_query)
+        
+        # Eliminar personas de prueba
+        delete_personas_query = text("""
+            DELETE FROM persona 
+            WHERE ci >= 90000000 AND nombre_completo = 'Votante Prueba'
+        """)
+        personas_eliminadas = db.execute(delete_personas_query)
+        
+        # Eliminar circuitos de prueba
+        delete_circuitos_query = text("""
+            DELETE FROM circuito 
+            WHERE barrio = 'Circuito Prueba'
+        """)
+        circuitos_eliminados = db.execute(delete_circuitos_query)
+        
+        db.commit()
+        
+        return {
+            "mensaje": "Datos de prueba eliminados exitosamente",
+            "votos_eliminados": votos_eliminados.rowcount,
+            "ciudadanos_eliminados": ciudadanos_eliminados.rowcount,
+            "personas_eliminadas": personas_eliminadas.rowcount,
+            "circuitos_eliminados": circuitos_eliminados.rowcount
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error limpiando datos de prueba: {str(e)}")
+
+@router.get("/diagnostico-duplicados")
+def diagnostico_duplicados(db = Depends(get_db)):
+    """
+    Diagnóstico para revisar posibles duplicados en la base de datos
+    """
+    try:
+        # Revisar si hay múltiples ciudadanos por circuito
+        query_ciudadanos = text("""
+            SELECT id_circuito, COUNT(*) as ciudadanos_count
+            FROM ciudadano 
+            GROUP BY id_circuito 
+            HAVING COUNT(*) > 1
+            ORDER BY ciudadanos_count DESC
+        """)
+        result_ciudadanos = db.execute(query_ciudadanos)
+        circuitos_con_multiples_ciudadanos = []
+        for row in result_ciudadanos:
+            circuitos_con_multiples_ciudadanos.append({
+                "id_circuito": row.id_circuito,
+                "ciudadanos_count": row.ciudadanos_count
+            })
+        
+        # Revisar votos observados con detalles
+        query_votos = text("""
+            SELECT v.id_voto, v.id_circuito, COUNT(*) as apariciones
+            FROM voto v
+            INNER JOIN ciudadano cd ON cd.id_circuito = v.id_circuito
+            WHERE v.observado = TRUE AND v.estado = 'Observado'
+            GROUP BY v.id_voto, v.id_circuito
+            HAVING COUNT(*) > 1
+        """)
+        result_votos = db.execute(query_votos)
+        votos_con_duplicados = []
+        for row in result_votos:
+            votos_con_duplicados.append({
+                "id_voto": row.id_voto,
+                "id_circuito": row.id_circuito,
+                "apariciones": row.apariciones
+            })
+        
+        return {
+            "circuitos_con_multiples_ciudadanos": circuitos_con_multiples_ciudadanos,
+            "votos_con_duplicados": votos_con_duplicados,
+            "total_circuitos_problematicos": len(circuitos_con_multiples_ciudadanos),
+            "total_votos_problematicos": len(votos_con_duplicados)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en diagnóstico: {str(e)}")
+
+@router.get("/estado-mesa")
+def obtener_estado_mesa():
+    """
+    Obtiene el estado actual de la mesa de votación usando archivos del sistema
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        # Crear directorio de configuración si no existe
+        config_dir = Path("config")
+        config_dir.mkdir(exist_ok=True)
+        config_file = config_dir / "mesa_estado.json"
+        
+        # Leer estado desde archivo
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                estado = config.get('estado', 'abierta')
+        else:
+            # Crear archivo con estado por defecto
+            estado = 'abierta'
+            config = {
+                'estado': estado,
+                'fecha_modificacion': datetime.now().isoformat(),
+                'descripcion': 'Estado inicial de la mesa'
+            }
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        return {
+            "estado": estado,
+            "mensaje": f"La mesa de votación está {estado}",
+            "permite_votos": estado == 'abierta'
+        }
+        
+    except Exception as e:
+        # Si hay cualquier error, asumir que la mesa está abierta
+        return {
+            "estado": "abierta",
+            "mensaje": "La mesa de votación está abierta (configuración por defecto)",
+            "permite_votos": True
+        }
+
+@router.post("/cerrar-mesa")
+def cerrar_mesa(data: dict):
+    """
+    Cierra la mesa de votación usando archivos del sistema
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        motivo = data.get("motivo", "Cierre de mesa por finalización del período electoral")
+        fecha_cierre = datetime.now()
+        
+        # Crear directorio de configuración si no existe
+        config_dir = Path("config")
+        config_dir.mkdir(exist_ok=True)
+        config_file = config_dir / "mesa_estado.json"
+        
+        # Leer estado actual
+        estado_actual = 'abierta'
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                estado_actual = config.get('estado', 'abierta')
+        
+        if estado_actual == 'cerrada':
+            return {
+                "mensaje": "La mesa ya está cerrada",
+                "estado": "cerrada",
+                "error": False
+            }
+        
+        # Actualizar estado a cerrada
+        config = {
+            'estado': 'cerrada',
+            'fecha_modificacion': fecha_cierre.isoformat(),
+            'descripcion': f"Mesa cerrada: {motivo}",
+            'motivo': motivo
+        }
+        
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        # Crear log de eventos
+        log_file = config_dir / "mesa_eventos.log"
+        log_entry = f"{fecha_cierre.isoformat()} - CIERRE: {motivo}\n"
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(log_entry)
+        
+        return {
+            "mensaje": "Mesa de votación cerrada exitosamente",
+            "estado": "cerrada",
+            "fecha_cierre": fecha_cierre.isoformat(),
+            "motivo": motivo,
+            "error": False
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error cerrando mesa: {str(e)}")
+
+@router.post("/abrir-mesa")
+def abrir_mesa(data: dict):
+    """
+    Reabre la mesa de votación usando archivos del sistema
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        motivo = data.get("motivo", "Reapertura de mesa por decisión administrativa")
+        fecha_apertura = datetime.now()
+        
+        # Crear directorio de configuración si no existe
+        config_dir = Path("config")
+        config_dir.mkdir(exist_ok=True)
+        config_file = config_dir / "mesa_estado.json"
+        
+        # Leer estado actual
+        estado_actual = 'abierta'
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                estado_actual = config.get('estado', 'abierta')
+        
+        if estado_actual == 'abierta':
+            return {
+                "mensaje": "La mesa ya está abierta",
+                "estado": "abierta",
+                "error": False
+            }
+        
+        # Actualizar estado a abierta
+        config = {
+            'estado': 'abierta',
+            'fecha_modificacion': fecha_apertura.isoformat(),
+            'descripcion': f"Mesa reabierta: {motivo}",
+            'motivo': motivo
+        }
+        
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        # Crear log de eventos
+        log_file = config_dir / "mesa_eventos.log"
+        log_entry = f"{fecha_apertura.isoformat()} - APERTURA: {motivo}\n"
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(log_entry)
+        
+        return {
+            "mensaje": "Mesa de votación reabierta exitosamente",
+            "estado": "abierta",
+            "fecha_apertura": fecha_apertura.isoformat(),
+            "motivo": motivo,
+            "error": False
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error abriendo mesa: {str(e)}")
+
+@router.post("/inicializar-configuracion")
+def inicializar_configuracion():
+    """
+    Inicializa la configuración del sistema usando archivos
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        # Crear directorio de configuración si no existe
+        config_dir = Path("config")
+        config_dir.mkdir(exist_ok=True)
+        config_file = config_dir / "mesa_estado.json"
+        
+        # Si no existe el archivo, crearlo con configuración inicial
+        if not config_file.exists():
+            config = {
+                'estado': 'abierta',
+                'fecha_modificacion': datetime.now().isoformat(),
+                'descripcion': 'Estado inicial de la mesa de votación',
+                'motivo': 'Inicialización del sistema'
+            }
+            
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            
+            return {"mensaje": "Configuración inicializada correctamente con archivos"}
+        else:
+            return {"mensaje": "Configuración ya existe"}
+        
+    except Exception as e:
+        return {"mensaje": f"Error inicializando configuración: {str(e)}"}
+
+@router.get("/debug-configuracion")
+def debug_configuracion():
+    """
+    Endpoint de diagnóstico para verificar el estado de la configuración usando archivos
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        config_dir = Path("config")
+        config_file = config_dir / "mesa_estado.json"
+        log_file = config_dir / "mesa_eventos.log"
+        
+        # Leer configuración actual
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                estado_mesa = config.get('estado', 'no_definido')
+        else:
+            estado_mesa = "archivo_no_existe"
+            config = {}
+        
+        # Leer log de eventos
+        eventos = []
+        if log_file.exists():
+            with open(log_file, 'r', encoding='utf-8') as f:
+                eventos = f.readlines()
+        
+        return {
+            "estado_mesa_actual": estado_mesa,
+            "configuracion_completa": config,
+            "archivo_existe": config_file.exists(),
+            "ruta_archivo": str(config_file.absolute()),
+            "eventos_recientes": eventos[-10:] if eventos else [],  # Últimos 10 eventos
+            "total_eventos": len(eventos)
+        }
+        
+    except Exception as e:
+        return {
+            "error": str(e),
+            "estado_mesa_actual": "error",
+            "configuracion_completa": {},
+            "archivo_existe": False,
+            "ruta_archivo": "error",
+            "eventos_recientes": [],
+            "total_eventos": 0
+        }

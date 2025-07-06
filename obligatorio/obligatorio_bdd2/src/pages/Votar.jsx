@@ -13,6 +13,7 @@ function Votar() {
   const [loading, setLoading] = useState(true);
   const [yaVoto, setYaVoto] = useState(false);
   const [infoVotoExistente, setInfoVotoExistente] = useState(null);
+  const [mesaCerrada, setMesaCerrada] = useState(false);
 
   useEffect(() => {
     // Cargar listas electorales y elección activa
@@ -20,6 +21,22 @@ function Votar() {
       try {
         console.log('Iniciando carga de datos...');
         console.log('Usuario actual:', user);
+        
+        // Verificar estado de la mesa de votación
+        try {
+          const resEstadoMesa = await fetch('http://localhost:8000/votos/estado-mesa');
+          if (resEstadoMesa.ok) {
+            const estadoMesa = await resEstadoMesa.json();
+            console.log('Estado de la mesa:', estadoMesa);
+            if (estadoMesa.estado === 'cerrada') {
+              setMesaCerrada(true);
+              setLoading(false);
+              return; // No continuar cargando si la mesa está cerrada
+            }
+          }
+        } catch (error) {
+          console.warn('No se pudo verificar el estado de la mesa, continuando...');
+        }
         
         // Obtener listas electorales (sin autenticación requerida)
         const resListas = await fetch('http://localhost:8000/votos/listas');
@@ -211,6 +228,53 @@ function Votar() {
         <div className="votar-content">
           <div className="votar-icon">⏳</div>
           <h2 className="votar-title">Cargando opciones de votación...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  // Si la mesa está cerrada, mostrar mensaje informativo
+  if (mesaCerrada) {
+    return (
+      <div className="votar-container">
+        <div className="votar-content">
+          <div className="votar-icon">🔒</div>
+          <h2 className="votar-title">Mesa de Votación Cerrada</h2>
+          
+          <div className="mesa-cerrada-info" style={{
+            background: '#f8d7da', 
+            padding: '25px', 
+            margin: '20px 0', 
+            borderRadius: '8px', 
+            border: '2px solid #dc3545',
+            textAlign: 'center'
+          }}>
+            <h3 style={{color: '#721c24', margin: '0 0 15px 0'}}>
+              🚫 Votación No Disponible
+            </h3>
+            <p style={{color: '#721c24', marginBottom: '15px', fontSize: '1.1rem'}}>
+              La mesa de votación ha sido cerrada por el presidente de mesa.
+            </p>
+            <p style={{color: '#721c24', margin: '0', fontSize: '0.95rem'}}>
+              No se están aceptando nuevos votos en este momento.
+            </p>
+          </div>
+
+          <div className="votar-nav-buttons" style={{marginTop: '30px'}}>
+            <button 
+              className="nav-button" 
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }}
+              style={{
+                background: '#dc3545',
+                color: 'white'
+              }}
+            >
+              🚪 Cerrar Sesión
+            </button>
+          </div>
         </div>
       </div>
     );

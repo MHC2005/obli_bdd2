@@ -64,8 +64,7 @@ function Admin() {
   };
 
   const handleVerResultados = () => {
-    // Implementar navegación a resultados
-    alert('Función de resultados en desarrollo');
+    navigate('/resultados');
   };
 
   if (loading) {

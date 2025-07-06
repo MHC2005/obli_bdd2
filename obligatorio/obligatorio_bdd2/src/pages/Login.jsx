@@ -57,7 +57,7 @@ function Login() {
           <p><strong>Acceso al Sistema:</strong></p>
           <p>• <strong>Presidente:</strong> CI <code>11111111</code> → Panel de Administración</p>
           <p>• <strong>Votantes:</strong> Cualquier otra CI (ej: <code>22222222</code>) → Sistema de Votación</p>
-          <p><small>Contraseña para todos: <code>password</code></small></p>
+
         </div>
 
         <div className="input-group">
