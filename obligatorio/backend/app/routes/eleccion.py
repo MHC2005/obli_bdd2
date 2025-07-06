@@ -73,7 +73,7 @@ def obtener_eleccion_activa(db = Depends(get_db)):
     query_hoy = text("""
         SELECT id_eleccion, fecha, tipo 
         FROM eleccion 
-        WHERE fecha = CURDATE()
+        WHERE fecha = CURRENT_DATE
         LIMIT 1
     """)
     result = db.execute(query_hoy)
@@ -84,7 +84,7 @@ def obtener_eleccion_activa(db = Depends(get_db)):
         query_pasado = text("""
             SELECT id_eleccion, fecha, tipo 
             FROM eleccion 
-            WHERE fecha <= CURDATE()
+            WHERE fecha <= CURRENT_DATE
             ORDER BY fecha DESC
             LIMIT 1
         """)

@@ -430,63 +430,51 @@ def marcar_voto_observado(voto_data: dict, db = Depends(get_db)):
 @router.post("/crear-voto-observado-prueba")
 def crear_voto_observado_prueba(db = Depends(get_db)):
     """
-    Crea un voto observado de prueba para testing
+    Crea un voto observado de prueba usando datos existentes
     """
     try:
-        # Obtener una elección activa
-        eleccion_query = text("SELECT id_eleccion FROM eleccion LIMIT 1")
-        eleccion_result = db.execute(eleccion_query)
-        eleccion = eleccion_result.fetchone()
+        # Obtener una elección disponible
+        eleccion_query = text("SELECT id_eleccion FROM eleccion ORDER BY id_eleccion LIMIT 1")
+        eleccion = db.execute(eleccion_query).fetchone()
         
         if not eleccion:
-            raise HTTPException(status_code=400, detail="No hay elecciones disponibles")
+            raise HTTPException(status_code=404, detail="No hay elecciones disponibles")
         
-        # Buscar un circuito que NO haya votado en esta elección
+        # Buscar un circuito con ciudadano que no haya votado en esta elección
         circuito_query = text("""
-            SELECT c.id_circuito 
+            SELECT c.id_circuito, p.ci, p.nombre_completo
             FROM circuito c
-            LEFT JOIN voto v ON c.id_circuito = v.id_circuito AND v.id_eleccion = :id_eleccion
-            WHERE v.id_voto IS NULL
+            INNER JOIN ciudadano cd ON c.id_circuito = cd.id_circuito
+            INNER JOIN persona p ON cd.ci = p.ci
+            WHERE NOT EXISTS (
+                SELECT 1 FROM voto v 
+                WHERE v.id_circuito = c.id_circuito 
+                AND v.id_eleccion = :id_eleccion
+            )
             LIMIT 1
         """)
-        circuito_result = db.execute(circuito_query, {"id_eleccion": eleccion.id_eleccion})
-        circuito = circuito_result.fetchone()
+        resultado = db.execute(circuito_query, {"id_eleccion": eleccion.id_eleccion}).fetchone()
         
-        if not circuito:
-            # Si no hay circuitos disponibles, crear uno temporal
-            # Obtener el próximo ID de circuito
-            max_circuito_query = text("SELECT COALESCE(MAX(id_circuito), 0) + 1 FROM circuito")
-            max_circuito_result = db.execute(max_circuito_query)
-            nuevo_id_circuito = max_circuito_result.fetchone()[0]
-            
-            # Crear nuevo circuito temporal
-            crear_circuito_query = text("""
-                INSERT INTO circuito (id_circuito, barrio, departamento)
-                VALUES (:id_circuito, 'Circuito Prueba', 'Montevideo')
+        if not resultado:
+            # Usar el primer circuito disponible aunque ya tenga votos (para prueba)
+            circuito_query = text("""
+                SELECT c.id_circuito, p.ci, p.nombre_completo
+                FROM circuito c
+                INNER JOIN ciudadano cd ON c.id_circuito = cd.id_circuito
+                INNER JOIN persona p ON cd.ci = p.ci
+                LIMIT 1
             """)
-            db.execute(crear_circuito_query, {"id_circuito": nuevo_id_circuito})
+            resultado = db.execute(circuito_query).fetchone()
             
-            # Crear persona asociada al circuito
-            crear_persona_query = text("""
-                INSERT INTO persona (ci, nombre_completo, password)
-                VALUES (:ci, 'Votante Prueba', 'password')
-            """)
-            ci_prueba = 90000000 + nuevo_id_circuito  # CI único
-            db.execute(crear_persona_query, {"ci": ci_prueba})
-            
-            # Crear ciudadano vinculado
-            crear_ciudadano_query = text("""
-                INSERT INTO ciudadano (ci, id_circuito)
-                VALUES (:ci, :id_circuito)
-            """)
-            db.execute(crear_ciudadano_query, {
-                "ci": ci_prueba,
-                "id_circuito": nuevo_id_circuito
-            })
-            
-            id_circuito_usar = nuevo_id_circuito
-        else:
-            id_circuito_usar = circuito.id_circuito
+            if not resultado:
+                raise HTTPException(status_code=404, detail="No hay circuitos con ciudadanos disponibles")
+        
+        # Obtener una lista electoral
+        lista_query = text("SELECT numero_lista FROM lista ORDER BY numero_lista LIMIT 1")
+        lista = db.execute(lista_query).fetchone()
+        
+        if not lista:
+            raise HTTPException(status_code=404, detail="No hay listas electorales disponibles")
         
         # Obtener el próximo ID de voto
         id_query = text("SELECT COALESCE(MAX(id_voto), 0) + 1 FROM voto")
@@ -495,23 +483,25 @@ def crear_voto_observado_prueba(db = Depends(get_db)):
         # Crear voto observado
         query = text("""
             INSERT INTO voto (id_voto, fecha_hora_emision, observado, estado, id_eleccion, id_circuito, numero_lista)
-            VALUES (:id_voto, :fecha_hora, TRUE, 'Observado', :id_eleccion, :id_circuito, 101)
+            VALUES (:id_voto, :fecha_hora, TRUE, 'Observado', :id_eleccion, :id_circuito, :numero_lista)
         """)
         
         db.execute(query, {
             "id_voto": next_id,
             "fecha_hora": datetime.now(),
             "id_eleccion": eleccion.id_eleccion,
-            "id_circuito": id_circuito_usar
+            "id_circuito": resultado.id_circuito,
+            "numero_lista": lista.numero_lista
         })
         db.commit()
         
         return {
             "id_voto": next_id,
-            "mensaje": "Voto observado de prueba creado exitosamente",
+            "mensaje": f"Voto observado de prueba creado para {resultado.nombre_completo}",
             "id_eleccion": eleccion.id_eleccion,
-            "id_circuito": id_circuito_usar,
-            "circuito_creado": circuito is None
+            "id_circuito": resultado.id_circuito,
+            "numero_lista": lista.numero_lista,
+            "ciudadano": resultado.nombre_completo
         }
         
     except HTTPException:

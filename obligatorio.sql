@@ -147,7 +147,50 @@ UPDATE persona SET numero = '094998877' WHERE ci = 45678901;
 -- Script completo de INSERT para sistema electoral
 -- Ejecutar en orden para respetar foreign keys
 
+-- Limpiar datos existentes en orden de dependencias
+DELETE FROM Voto_Papeleta;
+DELETE FROM Voto;
+DELETE FROM Contiene;
+DELETE FROM Integra;
+DELETE FROM Presentan;
+DELETE FROM Papeleta;
+DELETE FROM Agente_Policial;
+DELETE FROM Miembro_Mesa;
+DELETE FROM Ciudadano;
+DELETE FROM Lista;
+DELETE FROM Candidato;
+DELETE FROM Partido_Politico;
 DELETE FROM Persona;
+DELETE FROM Circuito;
+DELETE FROM Establecimiento;
+DELETE FROM Eleccion;
+
+-- 1. Establecimiento
+INSERT INTO Establecimiento (ID_Establecimiento, Tipo, Zona, Departamento, Nombre, Direccion)
+VALUES
+(1, 'Escuela', 'Centro', 'Montevideo', 'Escuela José Pedro Varela', 'Mercedes 1234'),
+(2, 'Liceo', 'Este', 'Canelones', 'Liceo Departamental', 'Artigas 567'),
+(3, 'Centro Comunal', 'Norte', 'Maldonado', 'Centro Comunal Zonal', 'Sarandi 890'),
+(4, 'Policlínica', 'Sur', 'Colonia', 'Policlínica del Barrio', 'Treinta y Tres 345'),
+(5, 'Club', 'Oeste', 'Montevideo', 'Club Social y Deportivo', 'Bulevar Batlle 678');
+
+-- 2. Circuito
+INSERT INTO Circuito (ID_Circuito, Barrio, Accesible, Localidad, Departamento, ID_Establecimiento)
+VALUES
+(1, 'Centro', TRUE, 'Montevideo', 'Montevideo', 1),
+(2, 'Pocitos', TRUE, 'Montevideo', 'Montevideo', 5),
+(3, 'Canelones', FALSE, 'Canelones', 'Canelones', 2),
+(4, 'Punta del Este', TRUE, 'Maldonado', 'Maldonado', 3),
+(5, 'Colonia del Sacramento', FALSE, 'Colonia', 'Colonia', 4);
+
+-- 3. Eleccion
+INSERT INTO Eleccion (ID_Eleccion, Fecha, Tipo)
+VALUES
+(1, '2024-10-27', 'Elecciones Nacionales'),
+(2, '2024-11-24', 'Balotaje Presidencial'),
+(3, '2025-05-10', 'Elecciones Departamentales'),
+(4, '2025-10-26', 'Elecciones Generales'),
+(5, '2025-11-30', 'Referéndum Nacional');
 
 -- 4. Persona
 INSERT INTO Persona (CI, Nombre_Completo, Numero, Serie)
